@@ -238,3 +238,42 @@ def test_process_dpt_files_smoke_on_real_fixtures():
         ws = wb[sheet_name]
         assert ws.max_row > 0
         assert ws.max_column > 0
+
+
+def _numeric_values(ws):
+    """Yield all numeric cell values from a worksheet."""
+    for row in ws.iter_rows(values_only=True):
+        for v in row:
+            if isinstance(v, (int, float)):
+                yield float(v)
+
+
+def test_pipeline_matches_golden_output():
+    """Numerically compare new-pipeline output to a saved golden xlsx from the original."""
+    import io as _io3
+    import math
+    from pathlib import Path
+
+    fixture_dir = Path(__file__).parent / "fixtures"
+    golden_path = fixture_dir / "golden_output.xlsx"
+    if not golden_path.exists():
+        pytest.skip("Golden output not present — generate by running the original pipeline (see plan Task 9)")
+
+    dpt_paths = sorted((fixture_dir / "sample_dpt").glob("*.dpt"))
+    files = [(p.name, p.read_bytes()) for p in dpt_paths]
+    _, xlsx_bytes = process_dpt_files(files)
+
+    new_wb = load_workbook(_io3.BytesIO(xlsx_bytes))
+    golden_wb = load_workbook(golden_path)
+
+    assert set(new_wb.sheetnames) == set(golden_wb.sheetnames), \
+        f"Sheet names differ: new={new_wb.sheetnames} golden={golden_wb.sheetnames}"
+
+    for sheet_name in new_wb.sheetnames:
+        new_vals = list(_numeric_values(new_wb[sheet_name]))
+        golden_vals = list(_numeric_values(golden_wb[sheet_name]))
+        assert len(new_vals) == len(golden_vals), \
+            f"Sheet {sheet_name}: cell-count mismatch ({len(new_vals)} vs {len(golden_vals)})"
+        for i, (n, g) in enumerate(zip(new_vals, golden_vals)):
+            assert math.isclose(n, g, rel_tol=1e-6, abs_tol=1e-6), \
+                f"Sheet {sheet_name}, value index {i}: new={n} golden={g}"
