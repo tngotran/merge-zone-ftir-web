@@ -125,3 +125,39 @@ def test_zone_for_filename_skips_merged_files():
     """Files with 'merged' in the name are skipped (return None)."""
     assert zone_for_filename("ZONE_1_merged.xlsx") is None
     assert zone_for_filename("zone_2_MERGED.dpt") is None
+
+
+from pipeline import merge_zone
+
+
+def test_merge_zone_two_files_column_layout():
+    """Per-file: 8 columns appended. Plus trailing mean column at the end."""
+    df_a = pd.DataFrame({
+        0: [1590.0, 2242.0, 1595.0, 2243.0],
+        1: [0.5,    0.8,    0.5,    0.8],
+    })
+    df_b = pd.DataFrame({
+        0: [1590.0, 2242.0, 1595.0, 2243.0],
+        1: [1.0,    2.0,    1.0,    2.0],
+    })
+    files = [("file_a.dpt", df_a), ("file_b.dpt", df_b)]
+    merged = merge_zone(files)
+    # 2 files * 8 columns each + 1 trailing mean = 17 columns
+    assert merged.shape[1] == 17
+
+    # For each file, result_l gets 2 values appended (macro + python).
+    # With this rigged data, macro_result (at 1590/2242) == python_result (at 1595/2243)
+    # because all four wavenumbers map to distinct rows but the formula
+    # uses the exact-match intensities.
+    # df_a: macro uses rows 0 (0.5) and 1 (0.8); python uses rows 2 (0.5) and 3 (0.8) — same formula result.
+    # df_b: macro uses rows 0 (1.0) and 1 (2.0); python uses rows 2 (1.0) and 3 (2.0) — same.
+    r_a = (0.29 * 0.5) / ((0.29 * 0.5) + 0.8) * 100
+    r_b = (0.29 * 1.0) / ((0.29 * 1.0) + 2.0) * 100
+    expected_mean = (r_a + r_a + r_b + r_b) / 4
+    assert float(merged.iloc[0, -1]) == pytest.approx(expected_mean, abs=1e-9)
+
+
+def test_merge_zone_empty_returns_empty():
+    """Zero files → empty DataFrame."""
+    merged = merge_zone([])
+    assert merged.empty

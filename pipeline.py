@@ -79,6 +79,56 @@ def parse_dpt(content: bytes) -> Optional[pd.DataFrame]:
     return df
 
 
+def merge_zone(files: list[tuple[str, pd.DataFrame]]) -> pd.DataFrame:
+    """Build the per-zone merged DataFrame.
+
+    For each file, appends columns: [col_A, col_B, macro_result, blank,
+    value@1595, max@2243, python_result, blank]. After all files, appends a
+    final column whose first cell is the mean of all per-file results
+    (both macro and python calculations contribute to the mean).
+    """
+    if not files:
+        return pd.DataFrame()
+
+    dfs = [df for _, df in files]
+    max_rows = max(df.shape[0] for df in dfs)
+
+    merged_cols: list = []
+    result_l: list[float] = []
+
+    for df in dfs:
+        if df.shape[0] < max_rows:
+            df = df.reindex(range(max_rows), fill_value='')
+
+        merged_cols.append(df.iloc[:, 0])
+        merged_cols.append(df.iloc[:, 1])
+
+        # Macro replacement: wavenumbers 1590 / 2242
+        macro_result = compute_macro_result(df, wn_a=1590, wn_b=2242)
+        result_l.append(macro_result)
+        merged_cols.append([macro_result] + [''] * (max_rows - 1))
+        merged_cols.append([''] * max_rows)  # blank column
+
+        # Python's own calculation: wavenumbers 1595 / 2243
+        col0_values = pd.to_numeric(df.iloc[:, 0], errors='coerce')
+        idx_1595 = (col0_values - 1595).abs().idxmin()
+        value_1595 = float(df.iloc[idx_1595, 1])
+        idx_2243 = (col0_values - 2243).abs().idxmin()
+        max_local = float(df.iloc[idx_2243, 1])
+        python_result = ((0.29 * value_1595) / ((0.29 * value_1595) + max_local)) * 100
+        result_l.append(python_result)
+
+        for val in [value_1595, max_local, python_result]:
+            merged_cols.append([val] + [''] * (max_rows - 1))
+        merged_cols.append([''] * max_rows)
+
+    # Trailing column: mean of all result_l values
+    mean_val = sum(result_l) / len(result_l) if result_l else ''
+    merged_cols.append([mean_val] + [''] * (max_rows - 1))
+
+    return pd.DataFrame({i: col for i, col in enumerate(merged_cols)})
+
+
 def zone_for_filename(filename: str) -> Optional[int]:
     """Return the zone number (1-6) for a filename, or None if no zone matches.
 
