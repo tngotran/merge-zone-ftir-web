@@ -128,6 +128,7 @@ def test_zone_for_filename_skips_merged_files():
 
 
 from pipeline import merge_zone
+from openpyxl import load_workbook
 
 
 def test_merge_zone_two_files_column_layout():
@@ -161,3 +162,59 @@ def test_merge_zone_empty_returns_empty():
     """Zero files → empty DataFrame."""
     merged = merge_zone([])
     assert merged.empty
+
+
+from pipeline import process_dpt_files
+
+
+def test_process_dpt_files_with_4_unzoned_files_treats_as_zone_1(tmp_path):
+    """If exactly 4 non-merged files have no zone name, all become Zone 1."""
+    content = b"1590,0.5\n2242,0.8\n1595,0.5\n2243,0.8\n"
+    files = [(f"sample_{i}.dpt", content) for i in range(4)]
+    filename, xlsx_bytes = process_dpt_files(files)
+    assert filename.endswith("_FINAL_OUTPUT.xlsx")
+    assert xlsx_bytes is not None and len(xlsx_bytes) > 0
+
+    out_path = tmp_path / "out.xlsx"
+    out_path.write_bytes(xlsx_bytes)
+    wb = load_workbook(out_path)
+    assert "ZONE 1" in wb.sheetnames
+
+
+def test_process_dpt_files_groups_by_zone_name():
+    """Files named with zone numbers are grouped accordingly."""
+    content = b"1590,0.5\n2242,0.8\n1595,0.5\n2243,0.8\n"
+    files = [
+        ("sample_zone1_a.dpt", content),
+        ("sample_zone1_b.dpt", content),
+        ("sample_zone2_a.dpt", content),
+        ("sample_zone2_b.dpt", content),
+    ]
+    filename, xlsx_bytes = process_dpt_files(files)
+
+    wb = load_workbook(io.BytesIO(xlsx_bytes))
+    assert "ZONE 1" in wb.sheetnames
+    assert "ZONE 2" in wb.sheetnames
+
+
+def test_process_dpt_files_progress_callback_called():
+    """Progress callback receives status messages during processing."""
+    content = b"1590,0.5\n2242,0.8\n"
+    files = [(f"sample_{i}.dpt", content) for i in range(4)]
+    messages: list[str] = []
+    process_dpt_files(files, progress_callback=messages.append)
+    assert len(messages) > 0
+    assert any("zone" in m.lower() or "parse" in m.lower() or "merge" in m.lower() for m in messages)
+
+
+def test_process_dpt_files_empty_input_raises():
+    """No valid files → raises ValueError."""
+    with pytest.raises(ValueError):
+        process_dpt_files([])
+
+
+def test_process_dpt_files_all_files_corrupt_raises():
+    """All files under 10 bytes → raises ValueError."""
+    files = [(f"sample_{i}.dpt", b"x") for i in range(3)]
+    with pytest.raises(ValueError):
+        process_dpt_files(files)

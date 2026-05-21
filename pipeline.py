@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import io
-from typing import Optional
+import io as _io
+from typing import Optional, Callable
 
 import pandas as pd
 
@@ -127,6 +128,77 @@ def merge_zone(files: list[tuple[str, pd.DataFrame]]) -> pd.DataFrame:
     merged_cols.append([mean_val] + [''] * (max_rows - 1))
 
     return pd.DataFrame({i: col for i, col in enumerate(merged_cols)})
+
+
+def process_dpt_files(
+    dpt_files: list[tuple[str, bytes]],
+    progress_callback: Optional[Callable[[str], None]] = None,
+) -> tuple[str, bytes]:
+    """Run the full pipeline end-to-end.
+
+    Returns: (output_filename, xlsx_bytes) suitable for st.download_button.
+    Raises ValueError if no valid spectra could be parsed.
+    """
+    def _log(msg: str) -> None:
+        if progress_callback is not None:
+            progress_callback(msg)
+
+    if not dpt_files:
+        raise ValueError("No .dpt files provided")
+
+    # Step 1: parse all .dpt files
+    parsed: list[tuple[str, pd.DataFrame]] = []
+    for name, content in dpt_files:
+        df = parse_dpt(content)
+        if df is None:
+            _log(f"Skipped {name} (too small or empty)")
+            continue
+        parsed.append((name, df))
+        _log(f"Parsed {name} ({df.shape[0]} rows)")
+
+    if not parsed:
+        raise ValueError("No valid .dpt files (all empty or corrupt)")
+
+    # Determine output filename from the first parsed file
+    first_stem = parsed[0][0].rsplit('.', 1)[0]
+    output_filename = f"{first_stem}_FINAL_OUTPUT.xlsx"
+
+    # Step 2: zone assignment
+    # Special case: exactly 4 non-merged files with no zone match → all Zone 1
+    zone_assignments: dict[int, list[tuple[str, pd.DataFrame]]] = {}
+    detected_zones = [zone_for_filename(name) for name, _ in parsed]
+    if len(parsed) == 4 and all(z is None for z in detected_zones):
+        _log("Exactly 4 unzoned files — treating all as Zone 1")
+        zone_assignments[1] = parsed
+    else:
+        for (name, df), zone in zip(parsed, detected_zones):
+            if zone is None:
+                _log(f"No zone matched for {name} — skipping")
+                continue
+            zone_assignments.setdefault(zone, []).append((name, df))
+
+    if not zone_assignments:
+        raise ValueError("No files matched any zone")
+
+    # Step 3: merge each zone
+    merged_by_zone: dict[int, pd.DataFrame] = {}
+    for zone_num in sorted(zone_assignments.keys()):
+        files_in_zone = zone_assignments[zone_num]
+        _log(f"Merging ZONE {zone_num} ({len(files_in_zone)} files)")
+        merged_by_zone[zone_num] = merge_zone(files_in_zone)
+
+    # Step 4: combine into multi-sheet workbook
+    buf = _io.BytesIO()
+    with pd.ExcelWriter(buf, engine='openpyxl') as writer:
+        for zone_num in sorted(merged_by_zone.keys()):
+            merged_by_zone[zone_num].to_excel(
+                writer,
+                sheet_name=f"ZONE {zone_num}",
+                index=False,
+                header=False,
+            )
+    _log(f"Final workbook ready: {output_filename}")
+    return output_filename, buf.getvalue()
 
 
 def zone_for_filename(filename: str) -> Optional[int]:
