@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import io
-import io as _io
 from typing import Optional, Callable
 
 import pandas as pd
@@ -62,12 +61,16 @@ def parse_dpt(content: bytes) -> Optional[pd.DataFrame]:
 
     # Numeric-vs-text header heuristic: try to parse the first column as float.
     # If it works, the file has no header. If not, treat row 0 as a header.
+    # IndexError means the first line is blank/whitespace; treat it as no header
+    # so skip_blank_lines=True below will discard it and keep all data rows.
     try:
         first_field = first_line.strip().split(',')[0] if ',' in first_line else first_line.strip().split()[0]
         float(first_field)
         header = None
+    except IndexError:
+        header = None  # blank first line — let skip_blank_lines handle it
     except ValueError:
-        header = 0
+        header = 0  # text header row — skip it
 
     df = pd.read_csv(
         buf,
@@ -75,6 +78,7 @@ def parse_dpt(content: bytes) -> Optional[pd.DataFrame]:
         engine='python',
         header=header,
         names=['Column1', 'Column2'],
+        skip_blank_lines=True,
         encoding=None,  # already decoded
     )
     return df
@@ -188,7 +192,7 @@ def process_dpt_files(
         merged_by_zone[zone_num] = merge_zone(files_in_zone)
 
     # Step 4: combine into multi-sheet workbook
-    buf = _io.BytesIO()
+    buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine='openpyxl') as writer:
         for zone_num in sorted(merged_by_zone.keys()):
             merged_by_zone[zone_num].to_excel(

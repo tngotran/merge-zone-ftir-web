@@ -73,6 +73,15 @@ def test_parse_dpt_with_text_header():
     assert df.iloc[0, 0] == pytest.approx(1000.5)
 
 
+def test_parse_dpt_blank_first_line_is_treated_as_header():
+    """A blank/whitespace first line is gracefully handled (treated as header, skipped)."""
+    content = b"\n1000.5,0.123\n1001.0,0.124\n"
+    df = parse_dpt(content)
+    assert df is not None
+    # The blank first row is consumed as the header; the remaining 2 rows are data.
+    assert df.shape[0] == 2
+
+
 def test_parse_dpt_utf16_bom():
     """UTF-16 with BOM is decoded correctly."""
     text = "1000.5,0.123\n1001.0,0.124\n"
@@ -205,6 +214,14 @@ def test_process_dpt_files_progress_callback_called():
     process_dpt_files(files, progress_callback=messages.append)
     assert len(messages) > 0
     assert any("zone" in m.lower() or "parse" in m.lower() or "merge" in m.lower() for m in messages)
+
+
+def test_process_dpt_files_no_zone_match_raises():
+    """3 valid files with no zone names → not the 4-unzoned special case, so ValueError."""
+    content = b"1590,0.5\n2242,0.8\n1595,0.5\n2243,0.8\n"
+    files = [(f"sample_{i}.dpt", content) for i in range(3)]
+    with pytest.raises(ValueError, match="No files matched any zone"):
+        process_dpt_files(files)
 
 
 def test_process_dpt_files_empty_input_raises():
