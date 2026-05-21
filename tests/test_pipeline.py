@@ -218,3 +218,23 @@ def test_process_dpt_files_all_files_corrupt_raises():
     files = [(f"sample_{i}.dpt", b"x") for i in range(3)]
     with pytest.raises(ValueError):
         process_dpt_files(files)
+
+
+def test_process_dpt_files_smoke_on_real_fixtures():
+    """Run the pipeline on the real .dpt fixtures and verify it produces a valid xlsx."""
+    from pathlib import Path
+    import io as _io2
+
+    fixture_dir = Path(__file__).parent / "fixtures" / "sample_dpt"
+    dpt_paths = sorted(fixture_dir.glob("*.dpt"))
+    assert len(dpt_paths) >= 1, "Fixture .dpt files missing"
+
+    files = [(p.name, p.read_bytes()) for p in dpt_paths]
+    filename, xlsx_bytes = process_dpt_files(files)
+
+    wb = load_workbook(_io2.BytesIO(xlsx_bytes))
+    assert len(wb.sheetnames) >= 1
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        assert ws.max_row > 0
+        assert ws.max_column > 0
