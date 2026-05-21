@@ -3,6 +3,7 @@ import pytest
 from pipeline import compute_macro_result
 import io
 from pipeline import parse_dpt
+from pipeline import zone_for_filename
 
 
 def test_compute_macro_result_exact_match_points():
@@ -97,3 +98,30 @@ def test_parse_dpt_real_fixture():
     assert df is not None
     assert df.shape[1] == 2
     assert df.shape[0] > 100  # FTIR spectra are typically thousands of points
+
+
+def test_zone_for_filename_standard_forms():
+    """Recognizes 'zone N', 'zoneN', 'zN', etc. case-insensitively."""
+    assert zone_for_filename("Sample Zone 1.dpt") == 1
+    assert zone_for_filename("sample_zone2_a.dpt") == 2
+    assert zone_for_filename("data Zone3.dpt") == 3
+    assert zone_for_filename("DATA ZONE 4.dpt") == 4
+    assert zone_for_filename("file z5 thing.dpt") == 5
+    assert zone_for_filename("Z6_sample.dpt") == 6
+
+
+def test_zone_for_filename_decimal_variants():
+    """Recognizes 'zone N.' forms (e.g., 'Zone 4.0')."""
+    assert zone_for_filename("Sample Zone 4.0.dpt") == 4
+
+
+def test_zone_for_filename_no_zone_returns_none():
+    """Returns None when no zone pattern matches."""
+    assert zone_for_filename("random_file.dpt") is None
+    assert zone_for_filename("EXTRACT_sample.dpt") is None
+
+
+def test_zone_for_filename_skips_merged_files():
+    """Files with 'merged' in the name are skipped (return None)."""
+    assert zone_for_filename("ZONE_1_merged.xlsx") is None
+    assert zone_for_filename("zone_2_MERGED.dpt") is None

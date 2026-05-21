@@ -77,3 +77,29 @@ def parse_dpt(content: bytes) -> Optional[pd.DataFrame]:
         encoding=None,  # already decoded
     )
     return df
+
+
+def zone_for_filename(filename: str) -> Optional[int]:
+    """Return the zone number (1-6) for a filename, or None if no zone matches.
+
+    Recognizes (case-insensitive): 'zone N', 'zoneN', 'zN', 'z N',
+    'zone N.', 'zoneN.', 'zN.', 'z N.'. Files containing 'merged' are
+    skipped (return None) so already-merged outputs aren't reprocessed.
+    """
+    fname_lower = filename.lower()
+    if 'merged' in fname_lower:
+        return None
+    for zone_num in range(1, 7):
+        patterns = [
+            f'zone {zone_num}',
+            f'zone{zone_num}',
+            f'z{zone_num}',
+            f'z {zone_num}',
+            f'z{zone_num}.',
+            f'z {zone_num}.',
+            f'zone {zone_num}.',
+            f'zone{zone_num}.',
+        ]
+        if any(p in fname_lower for p in patterns):
+            return zone_num
+    return None
