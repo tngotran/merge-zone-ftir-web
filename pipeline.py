@@ -10,19 +10,31 @@ import pandas as pd
 
 def compute_macro_result(
     df: pd.DataFrame,
-    wn_a: float = 1590,
+    wn_a: float = 1580,
     wn_b: float = 2242,
 ) -> float:
     """Replicates the VBA macro: ((0.29*z1)/((0.29*z1)+z2))*100
 
-    z1 = value in column 1 of the row whose column 0 is closest to wn_a.
-    z2 = value in column 1 of the row whose column 0 is closest to wn_b.
-    Defaults (1590, 2242) match the macro's Sheet2 variant, which is the
-    sheet the original Python pipeline reads from.
+    z1 and z2 are picked using Excel's INDEX(B, MATCH(wn, A, -1)) lookup —
+    among rows where col_A >= wn, take the one with the smallest col_A. On a
+    descending FTIR spectrum, this is the value just above (or equal to) the
+    requested wavenumber. This is NOT the same as nearest-by-absolute-distance:
+    when wn falls between two grid points, MATCH(-1) always rounds up.
+
+    Defaults (1580, 2242) match the formulas persisted in cells Z1/Z2 of
+    LumosTemplateProtected.xlsm (both Sheet1 and Sheet2) — the cells the
+    original Python pipeline reads via I5 = Z3.
     """
     col0 = pd.to_numeric(df.iloc[:, 0], errors='coerce')
-    z1 = float(df.iloc[(col0 - wn_a).abs().idxmin(), 1])
-    z2 = float(df.iloc[(col0 - wn_b).abs().idxmin(), 1])
+
+    def _match_minus_one(lookup: float) -> int:
+        mask = col0 >= lookup
+        if not mask.any():
+            return (col0 - lookup).abs().idxmin()
+        return col0.where(mask).idxmin()
+
+    z1 = float(df.iloc[_match_minus_one(wn_a), 1])
+    z2 = float(df.iloc[_match_minus_one(wn_b), 1])
     return ((0.29 * z1) / ((0.29 * z1) + z2)) * 100
 
 
@@ -108,8 +120,8 @@ def merge_zone(files: list[tuple[str, pd.DataFrame]]) -> pd.DataFrame:
         merged_cols.append(df.iloc[:, 0])
         merged_cols.append(df.iloc[:, 1])
 
-        # Macro replacement: wavenumbers 1590 / 2242
-        macro_result = compute_macro_result(df, wn_a=1590, wn_b=2242)
+        # Macro replacement: Excel MATCH(-1) at 1580 / 2242 (see compute_macro_result).
+        macro_result = compute_macro_result(df)
         result_l.append(macro_result)
         merged_cols.append([macro_result] + [''] * (max_rows - 1))
         merged_cols.append([''] * max_rows)  # blank column

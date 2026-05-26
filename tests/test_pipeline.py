@@ -9,36 +9,76 @@ from pipeline import zone_for_filename
 def test_compute_macro_result_exact_match_points():
     """When the spectrum contains exact wavenumber matches, returns the formula's value."""
     df = pd.DataFrame({
-        0: [1000.0, 1500.0, 1590.0, 1800.0, 2000.0, 2242.0, 2500.0],
+        0: [1000.0, 1500.0, 1580.0, 1800.0, 2000.0, 2242.0, 2500.0],
         1: [0.10,   0.20,   0.50,   0.40,   0.30,   0.80,   0.05],
     })
-    result = compute_macro_result(df, wn_a=1590, wn_b=2242)
-    # z1 = 0.5 (row at 1590), z2 = 0.8 (row at 2242)
+    result = compute_macro_result(df, wn_a=1580, wn_b=2242)
+    # z1 = 0.5 (row at 1580), z2 = 0.8 (row at 2242)
     expected = (0.29 * 0.5) / ((0.29 * 0.5) + 0.8) * 100
     assert result == pytest.approx(expected, abs=1e-9)
 
 
-def test_compute_macro_result_picks_closest_when_no_exact_match():
-    """When wavenumbers don't appear exactly, picks the row with smallest abs difference."""
+def test_compute_macro_result_match_minus_one_picks_value_above_lookup():
+    """Excel MATCH(value, A, -1) semantics: among rows where col_A >= lookup,
+    pick the row with the smallest col_A. On a descending FTIR spectrum, this
+    is the value just above (or equal to) the requested wavenumber — NOT
+    nearest-by-absolute-distance.
+    """
+    # Descending col_A (matches real FTIR data ordering)
     df = pd.DataFrame({
-        0: [1585.0, 1592.0, 2240.0, 2245.0],  # no exact 1590 or 2242
-        1: [0.10,   0.50,   0.80,   0.20],
+        0: [2245.0, 2240.0, 1592.0, 1578.0],
+        1: [0.20,   0.80,   0.50,   0.10],
     })
-    # Closest to 1590 is 1592 (|diff|=2), closest to 2242 is 2240 (|diff|=2)
-    result = compute_macro_result(df, wn_a=1590, wn_b=2242)
-    expected = (0.29 * 0.50) / ((0.29 * 0.50) + 0.80) * 100
+    result = compute_macro_result(df, wn_a=1580, wn_b=2242)
+    # wn_a=1580: rows with col_A >= 1580 are [2245, 2240, 1592]; smallest is 1592 → z1=0.50
+    # wn_b=2242: rows with col_A >= 2242 are [2245]; smallest is 2245 → z2=0.20
+    expected = (0.29 * 0.50) / ((0.29 * 0.50) + 0.20) * 100
     assert result == pytest.approx(expected, abs=1e-9)
 
 
 def test_compute_macro_result_default_wavenumbers():
-    """Defaults are wn_a=1590, wn_b=2242."""
+    """Defaults are wn_a=1580, wn_b=2242 (matching the saved formulas in
+    LumosTemplateProtected.xlsm Z1/Z2)."""
     df = pd.DataFrame({
-        0: [1590.0, 2242.0],
+        0: [2242.0, 1580.0],
         1: [1.0,    1.0],
     })
     result = compute_macro_result(df)
     expected = (0.29 * 1.0) / ((0.29 * 1.0) + 1.0) * 100
     assert result == pytest.approx(expected, abs=1e-9)
+
+
+def test_compute_macro_result_matches_legacy_xlsx_outputs():
+    """Regression: against real .dpt + FINAL_OUTPUT.xlsx pairs produced by
+    main_convert_dpt_2_excel.py, the macro_result column (C1/K1/S1/AA1) must
+    match to 1e-9. Locks in the Excel MATCH(-1) @ 1580 / 2242 behavior.
+    """
+    from pathlib import Path
+    from openpyxl import load_workbook
+
+    legacy_dir = Path(__file__).resolve().parent.parent / "legacy_testing_files"
+    if not legacy_dir.exists():
+        pytest.skip("legacy_testing_files/ not present")
+
+    dpt_paths = sorted(legacy_dir.glob("*.dpt"))
+    xlsx_paths = sorted(legacy_dir.glob("*FINAL_OUTPUT.xlsx"))
+    if not dpt_paths or not xlsx_paths:
+        pytest.skip("legacy_testing_files/ missing .dpt or FINAL_OUTPUT")
+
+    wb = load_workbook(xlsx_paths[0])
+    ws = wb[wb.sheetnames[0]]
+
+    # Per-file column layout: 8 cols per file, macro_result is the 3rd (offset +2)
+    macro_cells = [3, 11, 19, 27]  # C1, K1, S1, AA1 (1-indexed)
+
+    for i, dpt_path in enumerate(dpt_paths):
+        df = parse_dpt(dpt_path.read_bytes())
+        assert df is not None
+        got = compute_macro_result(df)
+        expected = ws.cell(row=1, column=macro_cells[i]).value
+        assert got == pytest.approx(expected, abs=1e-9), (
+            f"{dpt_path.name}: macro_result {got} != legacy {expected}"
+        )
 
 
 def test_parse_dpt_comma_separated_no_header():
