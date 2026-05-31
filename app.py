@@ -18,11 +18,14 @@ if "result" not in st.session_state:
     st.session_state.result = None  # tuple (filename, bytes) or None
 if "log" not in st.session_state:
     st.session_state.log = []  # list of str
+if "uploader_key" not in st.session_state:
+    st.session_state.uploader_key = 0
 
 uploaded = st.file_uploader(
     "Drop .dpt files here (or click to browse)",
     accept_multiple_files=True,
     type=["dpt"],
+    key=f"uploader_{st.session_state.uploader_key}",
 )
 
 if uploaded:
@@ -37,6 +40,7 @@ with col_reset:
     if st.button("Reset"):
         st.session_state.result = None
         st.session_state.log = []
+        st.session_state.uploader_key += 1
         st.rerun()
 
 if run_clicked:
@@ -97,4 +101,5 @@ if st.session_state.result is not None:
         if st.button("Process other files", use_container_width=True):
             st.session_state.result = None
             st.session_state.log = []
+            st.session_state.uploader_key += 1
             st.rerun()
