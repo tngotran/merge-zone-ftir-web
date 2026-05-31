@@ -15,7 +15,7 @@ from openpyxl import Workbook
 
 # Set the directory containing the .dpt files
 #folder_path = "/Users/t.ngo/Downloads/data"
-folder_path = "./5"
+folder_path = "/Users/t.ngo/Desktop/6"
 
 # Step 1
 # Convert .dpt files to .xlsx files

@@ -50,6 +50,21 @@ if run_clicked:
         log_placeholder.code("\n".join(st.session_state.log))
 
     files_payload = [(f.name, f.getvalue()) for f in uploaded]
+
+    empty_files = [name for name, content in files_payload if len(content) < 10]
+    if empty_files:
+        if len(empty_files) == len(files_payload):
+            st.error(
+                f"Your file(s) are empty and cannot be processed: "
+                + ", ".join(empty_files)
+            )
+            st.stop()
+        else:
+            st.warning(
+                f"The following file(s) are empty and will be skipped: "
+                + ", ".join(empty_files)
+            )
+
     try:
         with st.spinner("Processing..."):
             filename, xlsx_bytes = process_dpt_files(
@@ -69,9 +84,17 @@ if st.session_state.log and not run_clicked:
 
 if st.session_state.result is not None:
     fname, data = st.session_state.result
-    st.download_button(
-        label=f"Download {fname}",
-        data=data,
-        file_name=fname,
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+    col_dl, col_new = st.columns([3, 2])
+    with col_dl:
+        st.download_button(
+            label=f"Download {fname}",
+            data=data,
+            file_name=fname,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+        )
+    with col_new:
+        if st.button("Process other files", use_container_width=True):
+            st.session_state.result = None
+            st.session_state.log = []
+            st.rerun()
