@@ -1,0 +1,129 @@
+################################################################################
+# EDF_DataBlockID                     0.Image.Psd
+# EDF_BinarySize                      4637784
+# EDF_HeaderSize                      2048
+# ByteOrder                           LowByteFirst
+# DataType                            FloatValue
+# Dim_1                               1038
+# Dim_2                               1117
+# Image                               0
+# HeaderID                            EH:000000:000000:000000
+# Size                                4366944
+# Center_1                            607.008
+# Center_2                            651.03
+# DDummy                              0.6
+# Dummy                               -1.5
+# Intensity1                          1e-15
+# PSize_1                             7.5e-05
+# PSize_2                             7.5e-05
+# SampleDistance                      0.3
+# SampleEnvKind                       saxs
+# SampleEnvPN                         Solids
+# SampleEnvSN                         223
+# Wavelength                          1.34144e-10
+# bsth                                0
+# bsth_dial                           5.2145
+# bsx                                 0
+# bsx_dial                            -4.8865
+# det0x                               0
+# det0x_dial                          8.48717
+# det0xvd                             0
+# det0xvd_dial                        0
+# det0y                               299.999
+# det0y_dial                          635.588
+# det0z                               0
+# det0z_dial                          5.12535
+# det0zvd                             0
+# det0zvd_dial                        0
+# om                                  0.307799
+# om_dial                             -0.892498
+# phi                                 90.0036
+# phi_dial                            90.0056
+# ry                                  0.00089914
+# ry_dial                             0.170838
+# s1bot                               0.4
+# s1bot_dial                          -3.27219
+# s1hl                                0.4
+# s1hl_dial                           0.162812
+# s1hr                                0.4
+# s1hr_dial                           -1.52719
+# s1top                               0.4
+# s1top_dial                          -1.82703
+# s2bot                               0.35
+# s2bot_dial                          -0.137656
+# s2hl                                0.35
+# s2hl_dial                           0.840469
+# s2hr                                0.15
+# s2hr_dial                           0.661094
+# s2top                               0.15
+# s2top_dial                          0.568281
+# wind                                -104.99
+# wind_dial                           -104.99
+# x                                   -34.5
+# x_dial                              -33.5331
+# z                                   -50.9999
+# z_dial                              -30.6911
+# CountCutoff                         846234
+# DetectorModel                       Eiger2, S/N E-02-0210
+# ThresholdSetting                    4621.3
+# Saturation                          0
+# FlatField                           Corrected
+# BackgroundReductionExtra            0.05
+# BackgroundCorrectionConstant        0.001305
+# Pil_Roi0                            140874
+# Monitor                             0
+# det                                 0
+# Detector                            0
+# c3                                  0
+# pilai1                              0
+# pilai0                              38.537
+# pilroi0                             140874
+# pilct0                              442993
+# pilct1                              0
+# pilroi1                             0
+# mon                                 0
+# title                               20260624_Nguyen_SAXS_0_00012.edf
+# usaxs0                              0
+# sec                                 1
+# Operation                           Azimuthal profile I(Ψ)
+# Error_model                         Poisson
+# Geometrical_correction              True
+# Transmission_correction             True
+# Thickness_correction                False
+# RasterOrientation                   1
+# Delta_init_value                    0
+# Delta                               0.0
+# Gamma_init_value                    0
+# Gamma                               0.0
+# Psi                                 0.0
+# ExposureTime_init_value             900
+# ExposureTime                        900.0
+# TransmittedFlux                     1.0
+# Thickness_init_value                0
+# Thickness                           0.0
+# MaskInvalidPixels                   True
+# DetectorEdge                        3
+# QMin                                0.029
+# QMax                                0.036
+################################################################################
+    psi(°)                Intensity(a.u.)            Sigma_I(a.u.)            
+       0.000000                2160224.96                195977.927           
+       1.000000                2798218.74                99749.3324           
+       2.000000                2015680.78                133860.666           
+       3.000000                2764585.57                110850.757           
+       4.000000                1721387.34                123703.358           
+       5.000000                2216703.69                99260.7495           
+       6.000000                1219641.45                104125.811           
+       7.000000                1635835.67                85269.4946           
+       8.000000                925412.385                128269.829           
+       9.000000                1068415.16                 79572.673           
+      10.000000                870817.117                62213.9331           
+      11.000000                499294.798                66622.0081           
+      12.000000                589997.136                51209.3609           
+      13.000000                374024.479                57661.9675           
+      14.000000                358128.246                39897.3415           
+      15.000000                  267949.3                 48805.194           
+      16.000000                224045.781                36438.7682           
+      17.000000                293164.238                41682.0373           
+      18.000000                71553.7347                25220.6592           
+      19.000000                173652.338                27782.0317           
